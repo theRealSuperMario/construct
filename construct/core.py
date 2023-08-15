@@ -3277,12 +3277,18 @@ class FocusedSeq(Construct):
                     finalobj = obj
         """
         for sc in self.subcons:
-            block += f"""
-                    {f'obj = {"finalobj" if sc.name == self.parsebuildfrom else "None"}'}
-                    {f'buildret = '}{sc._compilebuild(code)}
-                    {f'this[{repr(sc.name)}] = buildret' if sc.name else ''}
-                    {f'{"finalret = buildret" if sc.name == self.parsebuildfrom else ""}'}
-            """
+            block += """
+                    {}
+                    {}{}
+                    {}
+                    {}
+            """.format(
+                    f'obj = {"finalobj" if sc.name == self.parsebuildfrom else "None"}',
+                    f'buildret = ',
+                    sc._compilebuild(code),
+                    f'this[{repr(sc.name)}] = buildret' if sc.name else '',
+                    f'{"finalret = buildret" if sc.name == self.parsebuildfrom else ""}'
+            )
         block += f"""
                     pass
                 except StopFieldError:
