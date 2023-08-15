@@ -2063,7 +2063,9 @@ class FlagsEnum(Adapter):
             raise MappingError("building failed, unknown label: %r" % (obj,), path=path)
 
     def _emitparse(self, code):
-        return f"reuse(({self.subcon._compileparse(code)}), lambda x: Container({', '.join(f'{k}=bool(x & {v} == {v})' for k,v in self.flags.items()) }))"
+        a = "self.subcon._compileparse(code)"
+        b = ', '.join(f'{k}=bool(x & {v} == {v})' for k,v in self.flags.items())
+        return "reuse(({}), lambda x: Container({}))".format(a, b)
 
     def _emitseq(self, ksy, bitwise):
         bitstotal = self.subcon.sizeof() * 8
@@ -2251,9 +2253,12 @@ class Struct(Construct):
                 try:
         """
         for sc in self.subcons:
-            block += f"""
-                    {f'result[{repr(sc.name)}] = this[{repr(sc.name)}] = ' if sc.name else ''}{sc._compileparse(code)}
-            """
+            block += """
+                    {}{}
+            """.format(f'result[{repr(sc.name)}] = this[{repr(sc.name)}] = ' if
+                                            sc.name else '',
+                       sc._compileparse(code)
+                       )
         block += f"""
                     pass
                 except StopFieldError:
@@ -2273,11 +2278,17 @@ class Struct(Construct):
                     objdict = obj
         """
         for sc in self.subcons:
-            block += f"""
-                    {f'obj = objdict.get({repr(sc.name)}, None)' if sc.flagbuildnone else f'obj = objdict[{repr(sc.name)}]'}
-                    {f'this[{repr(sc.name)}] = obj' if sc.name else ''}
-                    {f'this[{repr(sc.name)}] = ' if sc.name else ''}{sc._compilebuild(code)}
-            """
+            block += """
+                    {}
+                    {}
+                    {}{}
+            """.format(
+                f'obj = objdict.get({repr(sc.name)}, None)' if sc.flagbuildnone else
+                f'obj = objdict[{repr(sc.name)}]',
+                f'this[{repr(sc.name)}] = obj' if sc.name else '',
+                f'this[{repr(sc.name)}] = ' if sc.name else '',
+                sc._compilebuild(code)
+            )
         block += f"""
                     pass
                 except StopFieldError:
@@ -2432,13 +2443,20 @@ class Sequence(Construct):
                     retlist = ListContainer()
         """
         for sc in self.subcons:
-            block += f"""
-                    {f'obj = next(objiter)'}
-                    {f'this[{repr(sc.name)}] = obj' if sc.name else ''}
-                    {f'x = '}{sc._compilebuild(code)}
-                    {f'retlist.append(x)'}
-                    {f'this[{repr(sc.name)}] = x' if sc.name else ''}
-            """
+            block += """
+                    {}
+                    {}
+                    {}{}
+                    {}
+                    {}
+            """.format(
+                f'obj = next(objiter)',
+                f'this[{repr(sc.name)}] = obj' if sc.name else '',
+                f'x = ',
+                sc._compilebuild(code),
+                f'retlist.append(x)',
+                f'this[{repr(sc.name)}] = x' if sc.name else ''
+            )
         block += f"""
                     pass
                 except StopFieldError:
